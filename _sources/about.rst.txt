@@ -1,0 +1,14 @@
+
+.. _about:
+
+About
+============================
+
+Hello and thank you for taking the time to read about me. My goal with this blog is to inspire others and officially keep track of the topics that I learn. I find myself learning a topic, working on a project and finishing it up. I come back to the project months later only to forget almost everything I have learned. Hopefully this will assist me in retaining that knowledge and also gives me something to reference back to when needed versus having to conduct the research all over again.
+
+I am a Consulting Engineer with CDW and I specialize in Enterprise Networking, Wireless and Network Automation. I am by no means a programmer but have embraced it the last few years. I recognize the importance of programmability especially with the popularity of "software defined networking."
+
+Growing up I was the type of kid to always be outside playing. The first computer in my house was a Macintosh that my dad bought. I didn't start learning about computer networking until my late 20's. Learning about network automation didn't come until a couple years after I was already in the industry.
+
+I've always been intmidated with "programming." The first language that I started to learn was VsCode when I was in college. I did not pay much attention in this class and just kind of went through the motions. It wasn't until a couple years in the industry that I started teaching myself Python. I have fallen in love with Python and really enjoy automating my workflows now.
+

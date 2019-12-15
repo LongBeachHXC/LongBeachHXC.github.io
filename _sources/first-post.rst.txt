@@ -1,0 +1,11 @@
+
+.. Forrest's Blog post example, created by `ablog start` on Dec 13, 2019.
+
+.. post:: Dec 15, 2019
+   :tags: info
+   :author: Forrest Weinberg
+
+My Inaugural First Post
+=======================
+
+Wowsers, you know I never thought that I would have one of these but how look at how quickly it can change. The primary purpose of my blog will be to capture topics that interest me. It is very easy to forget information that you recently just learned so I am hoping this blog will help reinforce that information in my head. Also, I'll be able to reference back to my posts and hopefully jog my memory on what I have learned ;-).
