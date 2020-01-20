@@ -1,0 +1,194 @@
+
+Python Testing with Pytest
+==========================
+
+.. post:: Jan 18, 2020
+   :tags: Python3, Pytest, Mocks, Monkeypatch
+   :category: Python
+   :author: Forrest Weinberg
+
+As my first technical post I am going to talk about my experience that I recently had trying to incorporate testing into a project that I was working on. Before this, I never thought twice about building test ready code, so I knew this was going to be a challenge. I decided to go with the third-party libray pytest because there was a bunch of information out there about it and a lot of developers recommend using it. Also, there is a book out there by Brian Okken, called  'Python Testing with pytest' that was a great resource. 
+
+As I went through reading the book over and over again, I found myself trying to apply what I just learned to a project that I was working on. One of the first things I started thinking about was how am I going to test a function that depends on a third party API? How can you guarentee the same data will be returned at any given time? As a result, I started doing research on what this would look like.
+
+This is what lead me to the concept of mocking. Essentially, you mock the return of the call to the third-party api so that it returns a pre-determined set of data that mimics the acutal api and use that pre-determined data throughout the rest of the function. It is pretty cool stuff that can get pretty complex really quick. I'm going to talk about a really basic example that took me a little bit to wrap my head around. I found during my research that examples are similar to the official example from pytest. I am going to present the following example in the context of a class to give people the full perspective. Also, I'm not going to be talking about virtual envs or anything like that. I am talking about pytest and that is it. Lets go ahead and dive right in.
+
+Here are the project files:
+
+.. code-block:: python
+   :linenos:
+   :caption: third_party_api_helper.py
+   
+   import third_party_api
+
+
+   class ThirdPartyAPIHelper():
+
+       def __init__(self, api_key):
+           self.api_key = api_key
+           self.conn = third_party_api.initialize(self.api_key)
+    
+       def get_orgs(self):
+           orgs = self.conn.getOrganizations()
+           return orgs
+
+
+.. code-block:: python
+   :linenos:
+   :caption: app.py
+
+   from third_party_api import ThirdPartyAPIHelper
+   from terminaltables import AsciiTable
+
+   api_key = 'API Key Retrieved from environmnet'
+
+   class App():
+
+       def __init__(self):
+           self.conn = ThirdPartyAPIHelper(api_key)
+
+       def print_orgs(self):
+           table_data = []
+           table_data.append[['Org Name', 'Org ID']]
+           orgs = self.conn.get_orgs()
+           for org in orgs:
+               org_name = org.get('name')
+               org_id = org.get('id')
+               line = org_name, org_id
+               table_data.append(line)
+           table_instance = AsciiTable(table_data)
+           return table_instance.table
+
+For this project, I decided to create a `test_app.py` module that I was going to use to group all of the test functions geared towards app.py.
+
+.. code-block:: python
+   :linenos:
+   :caption: test_app.py
+
+   # test_app.py
+
+   # Standard Library Imports...
+
+   # Third-Party imports...
+   import pytest
+   from terminaltables import AsciiTable
+
+   # Local imports...
+   from third_party_api_helper import ThirdPartyAPIHelper
+
+   api_key = 'This is a Test'
+
+
+   @pytest.fixture()
+   def get_helper_object():
+       api_helper = ThirdPartyAPIHelper(api_key)
+       return api_helper
+
+
+   @pytest.fixture()
+   def expected_print_orgs_return():
+       table_data = []
+       table_data.append(['Org Name', 'Org ID'])
+       org_id = '54321'
+       org_name = 'CDW'
+       line = org_name, org_id
+       table_data.append(line)
+       table_instance = AsciiTable(table_data)
+       table_instance.padding_left = 2
+       table_instance.padding_right = 4   
+
+       return table_instance.table
+
+
+   def test_print_orgs(get_helper_object, expected_print_orgs_return, monkeypatch):
+       api_helper = get_helper_object
+
+       def mock_get_orgs():
+           response = [
+               {
+                   'id': '54321',
+                   'name': 'CDW',
+                   'url': 'https://n216.meraki.com/o/dSCMxc/manage/organization/overview'
+               }
+           ]
+           return response
+
+       monkeypatch.setattr(api_helper.conn, 'get_orgs', mock_get_orgs)
+
+       api_helper_print_orgs = api_helper.print_orgs()
+
+       assert api_helper_print_orgs == expected_print_orgs_return
+
+There are a couple things going on in `test_app.py` that I should explain just for clarity. At line number 15 is the start of the first `pytest.fixture` that I wrote.
+
+.. code-block:: python
+   :linenos:
+   :caption: test_app.py
+
+   @pytest.fixture()
+   def get_helper_object():
+       api_helper = ThirdPartyAPIHelper(api_key)
+       return api_helper
+
+This function is here to provide an instantiated API_helper object that we can use in all of the `test_app.py` functions that we will build. It is created as a fixture so that we don't need to rewrite this code in all of the test functions. With it being a `pytest.fixture` we can reuse that code block in all of our `test_app.py` module functions.
+
+As far as the second `pytest.fixture` that I wrote:
+
+.. code-block:: python
+   :linenos:
+   :caption: test_app.py
+
+   @pytest.fixture()
+   def expected_print_orgs_return():
+       table_data = []
+       table_data.append(['Org Name', 'Org ID'])
+       org_id = '54321'
+       org_name = 'CDW'
+       line = org_name, org_id
+       table_data.append(line)
+       table_instance = AsciiTable(table_data)
+       table_instance.padding_left = 2
+       table_instance.padding_right = 4   
+
+       return table_instance.table
+
+This above code does not necessarily need to be in a `pytest.fixture` as the code shouldn't need to be reused by another function but I wrote it as a fixture anyways. Keep in mind, this function can also be defined within the scope of the `test_print_orgs` function instead. This is the function that we'll use to compare the return of the actual test call.
+
+Then we have the `test_print_orgs` function that is a unittest for the `print_orgs` function within `app.py`.
+
+.. code-block:: python
+   :linenos:
+   :caption: test_app.py
+
+   def test_print_orgs(get_helper_object, expected_print_orgs_return, monkeypatch):
+       api_helper = get_helper_object
+
+       def mock_get_orgs():
+           response = [
+               {
+                   'id': '54321',
+                   'name': 'CDW',
+                   'url': 'https://n216.meraki.com/o/dSCMxc/manage/organization/overview'
+               }
+           ]
+           return response
+
+       monkeypatch.setattr(api_helper.conn, 'get_orgs', mock_get_orgs)
+
+       api_helper_print_orgs = api_helper.print_orgs()
+
+       assert api_helper_print_orgs == expected_print_orgs_return
+
+This function takes in 3 arguments: 
+
+   1. pytest.fixture #1 `get_helper_object`
+   2. pytest.fixture #2 `expected_print_orgs_return`
+   3. monkeypatch object
+
+The ``monkeypatch`` object is what we'll use to "mock" the third-party API call that is leveraged in ``app.py`` to retrieve a list of organizations the user has access to. This object is part of the pytest module and is passed in as an argument into the function that will be needing it. In the ``test_print_orgs`` function we will be needing it because we are testing a function that leverages a third-party api for data. Remember, we don't want to actually make the API call out to third-party servers, we want to mimic the call being made and respond with a pre-canned resonse that is hard coded.
+
+The monkeypatch object takes three arguments to successefully "patch" a call. Argument one is the module that the call is located in that you are targeting to patch. In my case, it is located within the ``third_party_api_helper`` module that contains the ``get_orgs`` function. This function will be accessed through the ``self.conn`` property generated in the init when we instantiated the `ThirdPartyAPIHelper` class. Through this ``self.conn`` property we are calling ``get_orgs`` to retrieve that list of organizations. Therefore, that is the function that we are targeting to mock with ``monkeypatch``.
+
+Argument 2 is the function that we will be patching. In our case it is the ``get_orgs`` function from the `ThirdPartyAPIHelper` class. The exact portion that is getting patched is line number 14 of ``app.py`` where the ``print_orgs`` function is calling ``orgs = self.conn.get_orgs()``.
+
+Argument 3 is the function that will be replacing the call to the third-party API. In our case it is the ``mock_get_orgs`` function defined on line number 4. This function is returning a pre-made list of values that were designed to simulate an acutal return from the third-party API. At this point in the code when ``orgs = self.conn.get_orgs()`` is called it is hijacked by the ``mock_print_orgs`` function and our pre-canned response is returned. Then, the ``print_orgs`` function continues on through the code using the data returned from our monkeypatch object.

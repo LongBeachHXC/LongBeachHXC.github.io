@@ -1,0 +1,550 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Python Testing with Pytest &#8212; Forrest&#39;s Blog  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="author" title="About these documents" href="../about/" />
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" />
+  
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  
+  <link rel="alternate" type="application/atom+xml"  href="../blog/atom.xml" title="Forrest's Blog Blog">
+  
+  
+  <style type="text/css">
+    ul.ablog-archive {list-style: none; overflow: auto; margin-left: 0px}
+    ul.ablog-archive li {float: left; margin-right: 5px; font-size: 80%}
+    ul.postlist a {font-style: italic;}
+    ul.postlist-style-disc {list-style-type: disc;}
+    ul.postlist-style-none {list-style-type: none;}
+    ul.postlist-style-circle {list-style-type: circle;}
+  </style>
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="python-testing-with-pytest">
+<h1>Python Testing with Pytest<a class="headerlink" href="#python-testing-with-pytest" title="Permalink to this headline">¶</a></h1>
+<p>As my first technical post I am going to talk about my experience that I recently had trying to incorporate testing into a project that I was working on. Before this, I never thought twice about building test ready code, so I knew this was going to be a challenge. I decided to go with the third-party libray pytest because there was a bunch of information out there about it and a lot of developers recommend using it. Also, there is a book out there by Brian Okken, called  ‘Python Testing with pytest’ that was a great resource.</p>
+<p>As I went through reading the book over and over again, I found myself trying to apply what I just learned to a project that I was working on. One of the first things I started thinking about was how am I going to test a function that depends on a third party API? How can you guarentee the same data will be returned at any given time? As a result, I started doing research on what this would look like.</p>
+<p>This is what lead me to the concept of mocking. Essentially, you mock the return of the call to the third-party api so that it returns a pre-determined set of data that mimics the acutal api and use that pre-determined data throughout the rest of the function. It is pretty cool stuff that can get pretty complex really quick. I’m going to talk about a really basic example that took me a little bit to wrap my head around. I found during my research that examples are similar to the official example from pytest. I am going to present the following example in the context of a class to give people the full perspective. Also, I’m not going to be talking about virtual envs or anything like that. I am talking about pytest and that is it. Lets go ahead and dive right in.</p>
+<p>Here are the project files:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">third_party_api_helper.py</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">third_party_api</span>
+
+
+<span class="k">class</span> <span class="nc">ThirdPartyAPIHelper</span><span class="p">():</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">third_party_api</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_orgs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">orgs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">getOrganizations</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">orgs</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">app.py</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">third_party_api</span> <span class="kn">import</span> <span class="n">ThirdPartyAPIHelper</span>
+<span class="kn">from</span> <span class="nn">terminaltables</span> <span class="kn">import</span> <span class="n">AsciiTable</span>
+
+<span class="n">api_key</span> <span class="o">=</span> <span class="s1">&#39;API Key Retrieved from environmnet&#39;</span>
+
+<span class="k">class</span> <span class="nc">App</span><span class="p">():</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">ThirdPartyAPIHelper</span><span class="p">(</span><span class="n">api_key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">print_orgs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">table_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">[[</span><span class="s1">&#39;Org Name&#39;</span><span class="p">,</span> <span class="s1">&#39;Org ID&#39;</span><span class="p">]]</span>
+        <span class="n">orgs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">get_orgs</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">org</span> <span class="ow">in</span> <span class="n">orgs</span><span class="p">:</span>
+            <span class="n">org_name</span> <span class="o">=</span> <span class="n">org</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
+            <span class="n">org_id</span> <span class="o">=</span> <span class="n">org</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">org_name</span><span class="p">,</span> <span class="n">org_id</span>
+            <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+        <span class="n">table_instance</span> <span class="o">=</span> <span class="n">AsciiTable</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">table_instance</span><span class="o">.</span><span class="n">table</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>For this project, I decided to create a <cite>test_app.py</cite> module that I was going to use to group all of the test functions geared towards app.py.</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">test_app.py</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1"># test_app.py</span>
+
+<span class="c1"># Standard Library Imports...</span>
+
+<span class="c1"># Third-Party imports...</span>
+<span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">terminaltables</span> <span class="kn">import</span> <span class="n">AsciiTable</span>
+
+<span class="c1"># Local imports...</span>
+<span class="kn">from</span> <span class="nn">third_party_api_helper</span> <span class="kn">import</span> <span class="n">ThirdPartyAPIHelper</span>
+
+<span class="n">api_key</span> <span class="o">=</span> <span class="s1">&#39;This is a Test&#39;</span>
+
+
+<span class="nd">@pytest.fixture</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">get_helper_object</span><span class="p">():</span>
+    <span class="n">api_helper</span> <span class="o">=</span> <span class="n">ThirdPartyAPIHelper</span><span class="p">(</span><span class="n">api_key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">api_helper</span>
+
+
+<span class="nd">@pytest.fixture</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">expected_print_orgs_return</span><span class="p">():</span>
+    <span class="n">table_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;Org Name&#39;</span><span class="p">,</span> <span class="s1">&#39;Org ID&#39;</span><span class="p">])</span>
+    <span class="n">org_id</span> <span class="o">=</span> <span class="s1">&#39;54321&#39;</span>
+    <span class="n">org_name</span> <span class="o">=</span> <span class="s1">&#39;CDW&#39;</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">org_name</span><span class="p">,</span> <span class="n">org_id</span>
+    <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="n">table_instance</span> <span class="o">=</span> <span class="n">AsciiTable</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
+    <span class="n">table_instance</span><span class="o">.</span><span class="n">padding_left</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">table_instance</span><span class="o">.</span><span class="n">padding_right</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="k">return</span> <span class="n">table_instance</span><span class="o">.</span><span class="n">table</span>
+
+
+<span class="k">def</span> <span class="nf">test_print_orgs</span><span class="p">(</span><span class="n">get_helper_object</span><span class="p">,</span> <span class="n">expected_print_orgs_return</span><span class="p">,</span> <span class="n">monkeypatch</span><span class="p">):</span>
+    <span class="n">api_helper</span> <span class="o">=</span> <span class="n">get_helper_object</span>
+
+    <span class="k">def</span> <span class="nf">mock_get_orgs</span><span class="p">():</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="s1">&#39;54321&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;CDW&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;https://n216.meraki.com/o/dSCMxc/manage/organization/overview&#39;</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">response</span>
+
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="n">api_helper</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s1">&#39;get_orgs&#39;</span><span class="p">,</span> <span class="n">mock_get_orgs</span><span class="p">)</span>
+
+    <span class="n">api_helper_print_orgs</span> <span class="o">=</span> <span class="n">api_helper</span><span class="o">.</span><span class="n">print_orgs</span><span class="p">()</span>
+
+    <span class="k">assert</span> <span class="n">api_helper_print_orgs</span> <span class="o">==</span> <span class="n">expected_print_orgs_return</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>There are a couple things going on in <cite>test_app.py</cite> that I should explain just for clarity. At line number 15 is the start of the first <cite>pytest.fixture</cite> that I wrote.</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">test_app.py</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nd">@pytest.fixture</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">get_helper_object</span><span class="p">():</span>
+    <span class="n">api_helper</span> <span class="o">=</span> <span class="n">ThirdPartyAPIHelper</span><span class="p">(</span><span class="n">api_key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">api_helper</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>This function is here to provide an instantiated API_helper object that we can use in all of the <cite>test_app.py</cite> functions that we will build. It is created as a fixture so that we don’t need to rewrite this code in all of the test functions. With it being a <cite>pytest.fixture</cite> we can reuse that code block in all of our <cite>test_app.py</cite> module functions.</p>
+<p>As far as the second <cite>pytest.fixture</cite> that I wrote:</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">test_app.py</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nd">@pytest.fixture</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">expected_print_orgs_return</span><span class="p">():</span>
+    <span class="n">table_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;Org Name&#39;</span><span class="p">,</span> <span class="s1">&#39;Org ID&#39;</span><span class="p">])</span>
+    <span class="n">org_id</span> <span class="o">=</span> <span class="s1">&#39;54321&#39;</span>
+    <span class="n">org_name</span> <span class="o">=</span> <span class="s1">&#39;CDW&#39;</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">org_name</span><span class="p">,</span> <span class="n">org_id</span>
+    <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="n">table_instance</span> <span class="o">=</span> <span class="n">AsciiTable</span><span class="p">(</span><span class="n">table_data</span><span class="p">)</span>
+    <span class="n">table_instance</span><span class="o">.</span><span class="n">padding_left</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">table_instance</span><span class="o">.</span><span class="n">padding_right</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="k">return</span> <span class="n">table_instance</span><span class="o">.</span><span class="n">table</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>This above code does not necessarily need to be in a <cite>pytest.fixture</cite> as the code shouldn’t need to be reused by another function but I wrote it as a fixture anyways. Keep in mind, this function can also be defined within the scope of the <cite>test_print_orgs</cite> function instead. This is the function that we’ll use to compare the return of the actual test call.</p>
+<p>Then we have the <cite>test_print_orgs</cite> function that is a unittest for the <cite>print_orgs</cite> function within <cite>app.py</cite>.</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">test_app.py</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_print_orgs</span><span class="p">(</span><span class="n">get_helper_object</span><span class="p">,</span> <span class="n">expected_print_orgs_return</span><span class="p">,</span> <span class="n">monkeypatch</span><span class="p">):</span>
+    <span class="n">api_helper</span> <span class="o">=</span> <span class="n">get_helper_object</span>
+
+    <span class="k">def</span> <span class="nf">mock_get_orgs</span><span class="p">():</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="s1">&#39;54321&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;CDW&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;https://n216.meraki.com/o/dSCMxc/manage/organization/overview&#39;</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">response</span>
+
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="n">api_helper</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s1">&#39;get_orgs&#39;</span><span class="p">,</span> <span class="n">mock_get_orgs</span><span class="p">)</span>
+
+    <span class="n">api_helper_print_orgs</span> <span class="o">=</span> <span class="n">api_helper</span><span class="o">.</span><span class="n">print_orgs</span><span class="p">()</span>
+
+    <span class="k">assert</span> <span class="n">api_helper_print_orgs</span> <span class="o">==</span> <span class="n">expected_print_orgs_return</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>This function takes in 3 arguments:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>pytest.fixture #1 <cite>get_helper_object</cite></p></li>
+<li><p>pytest.fixture #2 <cite>expected_print_orgs_return</cite></p></li>
+<li><p>monkeypatch object</p></li>
+</ol>
+</div></blockquote>
+<p>The <code class="docutils literal notranslate"><span class="pre">monkeypatch</span></code> object is what we’ll use to “mock” the third-party API call that is leveraged in <code class="docutils literal notranslate"><span class="pre">app.py</span></code> to retrieve a list of organizations the user has access to. This object is part of the pytest module and is passed in as an argument into the function that will be needing it. In the <code class="docutils literal notranslate"><span class="pre">test_print_orgs</span></code> function we will be needing it because we are testing a function that leverages a third-party api for data. Remember, we don’t want to actually make the API call out to third-party servers, we want to mimic the call being made and respond with a pre-canned resonse that is hard coded.</p>
+<p>The monkeypatch object takes three arguments to successefully “patch” a call. Argument one is the module that the call is located in that you are targeting to patch. In my case, it is located within the <code class="docutils literal notranslate"><span class="pre">third_party_api_helper</span></code> module that contains the <code class="docutils literal notranslate"><span class="pre">get_orgs</span></code> function. This function will be accessed through the <code class="docutils literal notranslate"><span class="pre">self.conn</span></code> property generated in the init when we instantiated the <cite>ThirdPartyAPIHelper</cite> class. Through this <code class="docutils literal notranslate"><span class="pre">self.conn</span></code> property we are calling <code class="docutils literal notranslate"><span class="pre">get_orgs</span></code> to retrieve that list of organizations. Therefore, that is the function that we are targeting to mock with <code class="docutils literal notranslate"><span class="pre">monkeypatch</span></code>.</p>
+<p>Argument 2 is the function that we will be patching. In our case it is the <code class="docutils literal notranslate"><span class="pre">get_orgs</span></code> function from the <cite>ThirdPartyAPIHelper</cite> class. The exact portion that is getting patched is line number 14 of <code class="docutils literal notranslate"><span class="pre">app.py</span></code> where the <code class="docutils literal notranslate"><span class="pre">print_orgs</span></code> function is calling <code class="docutils literal notranslate"><span class="pre">orgs</span> <span class="pre">=</span> <span class="pre">self.conn.get_orgs()</span></code>.</p>
+<p>Argument 3 is the function that will be replacing the call to the third-party API. In our case it is the <code class="docutils literal notranslate"><span class="pre">mock_get_orgs</span></code> function defined on line number 4. This function is returning a pre-made list of values that were designed to simulate an acutal return from the third-party API. At this point in the code when <code class="docutils literal notranslate"><span class="pre">orgs</span> <span class="pre">=</span> <span class="pre">self.conn.get_orgs()</span></code> is called it is hijacked by the <code class="docutils literal notranslate"><span class="pre">mock_print_orgs</span></code> function and our pre-canned response is returned. Then, the <code class="docutils literal notranslate"><span class="pre">print_orgs</span></code> function continues on through the code using the data returned from our monkeypatch object.</p>
+</div>
+
+  <div class="section">
+  
+    
+
+
+<div class="section">
+  <span style="float: left;">
+  
+  Previous: 
+  <a href="../first-post/">
+    
+    My Inaugural First Post
+  </a>
+  
+  </span>
+  <span>&nbsp;</span>
+  <span style="float: right;">
+  
+</div>
+
+  
+  
+  </div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../">
+    <img class="logo" src="../_static/circleheadshot.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+
+  
+  
+  <h2>
+  
+  
+    18 January 2020
+  
+  </h2>
+
+  <ul>
+    
+
+  
+  <li id="author"><span>Author:</span>
+    
+      
+      <a href="../blog/author/forrest-weinberg/">Forrest Weinberg</a>
+      
+    </li>
+  
+
+  
+
+  
+
+  
+  <li id="category"><span>Category:</span>
+    
+      
+      <a href="../blog/category/python/">Python</a>
+      
+    </li>
+  
+
+  
+  <li id="tags"><span>Tags:
+      </span>
+    
+      
+      <a href="../blog/tag/python3/">Python3</a>
+      
+    
+      
+      <a href="../blog/tag/pytest/">Pytest</a>
+      
+    
+      
+      <a href="../blog/tag/mocks/">Mocks</a>
+      
+    
+      
+      <a href="../blog/tag/monkeypatch/">Monkeypatch</a>
+      
+    </li>
+  
+  
+  </ul>
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/">About</a></li>
+</ul>
+
+
+  <h3><a href="../blog/">Recent Posts</a></h3>
+  <ul>
+    
+    
+      <li><a href="../first-post/">15 December - My Inaugural First Post</a></li>
+    
+  </ul>
+
+  <h3><a href="../blog/tag/">Tags</a></h3>
+  <style type="text/css">
+    ul.ablog-cloud {list-style: none; overflow: auto;}
+    ul.ablog-cloud li {float: left; height: 20pt; line-height: 18pt; margin-right: 5px;}
+    ul.ablog-cloud a {text-decoration: none; vertical-align: middle;}
+    li.ablog-cloud-1{font-size: 80%;}
+    li.ablog-cloud-2{font-size: 95%;}
+    li.ablog-cloud-3{font-size: 110%;}
+    li.ablog-cloud-4{font-size: 125%;}
+    li.ablog-cloud-5{font-size: 140%;}
+  </style>
+  <ul class="ablog-cloud">
+    
+      
+      <li class="ablog-cloud ablog-cloud-3">
+        <a href="../blog/tag/mocks/">Mocks</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-3">
+        <a href="../blog/tag/monkeypatch/">Monkeypatch</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-3">
+        <a href="../blog/tag/pytest/">Pytest</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-3">
+        <a href="../blog/tag/python3/">Python3</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-3">
+        <a href="../blog/tag/info/">info</a></li>
+      
+    
+  </ul>
+
+  <h3><a href="../blog/category/">Categories</a></h3>
+  <ul>
+  
+    
+    <li><a href="../blog/category/python/">Python (1)</a></li>
+    
+  
+  </ul>
+
+  <h3><a href="../blog/archive/">Archives</a></h3>
+  <ul>
+  
+    
+    <li><a href="../blog/2020/">2020 (1)</a></li>
+    
+  
+    
+    <li><a href="../blog/2019/">2019 (1)</a></li>
+    
+  
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search/" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Forrest Weinberg.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/pytest_testing.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
