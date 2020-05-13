@@ -1,29 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title type="text">Forrest's Blog Blog</title>
-  <id>http://forrestblog.com/blog/atom.xml</id>
-  <updated>2020-01-18T00:00:00Z</updated>
-  <link href="http://forrestblog.com/" />
-  <link href="http://forrestblog.com/blog/atom.xml" rel="self" />
+  <title type="text">Forrest's Blog</title>
+  <id>http://longbeachhxc.github.io/blog/atom.xml</id>
+  <updated>2020-05-13T00:00:00Z</updated>
+  <link href="http://longbeachhxc.github.io" />
+  <link href="http://longbeachhxc.github.io/blog/atom.xml" rel="self" />
   <generator uri="https://ablog.readthedocs.org" version="0.10.0">ABlog</generator>
-  <entry xml:base="http://forrestblog.com/blog/atom.xml">
+  <entry xml:base="http://longbeachhxc.github.io/blog/atom.xml">
+    <title type="text">Open Letter to my Right Foot</title>
+    <id>http://longbeachhxc.github.io/foot_open_letter/</id>
+    <updated>2020-05-13T00:00:00Z</updated>
+    <published>2020-05-13T00:00:00Z</published>
+    <link href="http://longbeachhxc.github.io/foot_open_letter/" />
+    <author>
+      <name></name>
+    </author>
+    <content type="html">&lt;p&gt;Dear Right Foot,&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://longbeachhxc.github.io/blog/atom.xml">
     <title type="text">Python Testing with Pytest</title>
-    <id>http://forrestblog.com/pytest_testing/</id>
+    <id>http://longbeachhxc.github.io/pytest_testing/</id>
     <updated>2020-01-18T00:00:00Z</updated>
     <published>2020-01-18T00:00:00Z</published>
-    <link href="http://forrestblog.com/pytest_testing/" />
+    <link href="http://longbeachhxc.github.io/pytest_testing/" />
     <author>
       <name>Forrest Weinberg</name>
     </author>
     <content type="html">&lt;p&gt;As my first technical post I am going to talk about my experience that I recently had trying to incorporate testing into a project that I was working on. Before this, I never thought twice about building test ready code, so I knew this was going to be a challenge. I decided to go with the third-party libray pytest because there was a bunch of information out there about it and a lot of developers recommend using it. Also, there is a book out there by Brian Okken, called  ‘Python Testing with pytest’ that was a great resource.&lt;/p&gt;
 </content>
   </entry>
-  <entry xml:base="http://forrestblog.com/blog/atom.xml">
+  <entry xml:base="http://longbeachhxc.github.io/blog/atom.xml">
     <title type="text">My Inaugural First Post</title>
-    <id>http://forrestblog.com/first-post/</id>
+    <id>http://longbeachhxc.github.io/first-post/</id>
     <updated>2019-12-15T00:00:00Z</updated>
     <published>2019-12-15T00:00:00Z</published>
-    <link href="http://forrestblog.com/first-post/" />
+    <link href="http://longbeachhxc.github.io/first-post/" />
     <author>
       <name>Forrest Weinberg</name>
     </author>
